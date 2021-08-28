@@ -1,0 +1,107 @@
+# Auto release and force cache
+
+name: Auto release and force cache
+
+# Controls when the action will run. Triggers the workflow only on push
+# events but only for the master branch
+on:
+  push:
+    branches: [ master ]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-18.04
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+    - uses: actions/checkout@v2
+    
+    # Get changed files
+    - id: files
+      name: Get changed files
+      uses: lots0logs/gh-action-get-changed-files@2.1.4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    # Check files
+    - id: check
+      name: Check files
+      run: |
+        # Check files
+        readarray -t added_files <<<"$(jq -r '.[]' <<<'${{ steps.files.outputs.added }}')"
+        readarray -t renamed_files <<<"$(jq -r '.[]' <<<'${{ steps.files.outputs.renamed }}')"
+        readarray -t modified_files <<<"$(jq -r '.[]' <<<'${{ steps.files.outputs.modified }}')"
+        for file in ${added_files[@]}; do
+          if [[ $file != .github* ]]; then
+            echo "::set-output name=continue::1"
+            exit
+          fi
+        done
+        for file in ${renamed_files[@]}; do
+          if [[ $file != .github* ]]; then
+            echo "::set-output name=continue::1"
+            exit
+          fi
+        done
+        for file in ${modified_files[@]}; do
+          if [[ $file != .github* ]]; then
+            echo "::set-output name=continue::1"
+            exit
+          fi
+        done
+        echo "::set-output name=continue::0"
+    # Auto release
+    - name: Auto release
+      if: steps.check.outputs.continue == 1
+      uses: marvinpinto/action-automatic-releases@latest
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        automatic_release_tag: ${{ github.run_id }}
+        prerelease: false
+        title: ${{ github.run_id }}
+
+    # Force cache
+    - name: Force cache
+      if: steps.check.outputs.continue == 1
+      run: |
+        # Force cache
+        function uriencode {
+          uri=`jq -nr --arg v "$1" '$v|@uri'`
+          echo ${uri//%2[Ff]//}
+        }
+        function force_cache() {
+          curl -s -o /dev/null --retry 5 "https://cdn.jsdelivr.net/gh/wuxianucw/ucw-desu@master/"$1
+          url="https://cdn.jsdelivr.net/gh/wuxianucw/ucw-desu@${{ github.run_id }}/"$1
+          code=`curl -s -o /dev/null --retry 5 -w %{http_code} $url`
+          echo "Force cache "$url" [ "$code" ]"
+          if [ $code != "200" ]
+          then
+              url="https://cdn.jsdelivr.net/gh/wuxianucw/ucw-desu@master/"$1
+              echo " - Try master "$url" [ `curl -s -o /dev/null --retry 5 -w %{http_code} $url` ]"
+              url="https://cdn.jsdelivr.net/gh/wuxianucw/ucw-desu@${{ github.run_id }}/"$1
+              echo " - Retry "$url" [ `curl -s -o /dev/null --retry 5 -w %{http_code} $url` ]"
+          fi
+          url="https://cdn.jsdelivr.net/gh/wuxianucw/ucw-desu/"$1
+          echo " -> "$url" [ `curl -s -o /dev/null --retry 5 -w %{http_code} $url` ]"
+        }
+        readarray -t added_files <<<"$(jq -r '.[]' <<<'${{ steps.files.outputs.added }}')"
+        readarray -t renamed_files <<<"$(jq -r '.[]' <<<'${{ steps.files.outputs.renamed }}')"
+        readarray -t modified_files <<<"$(jq -r '.[]' <<<'${{ steps.files.outputs.modified }}')"
+        for file in ${added_files[@]}; do
+          if [[ $file != .github* ]]; then
+            force_cache `uriencode $file`
+          fi
+        done
+        for file in ${renamed_files[@]}; do
+          if [[ $file != .github* ]]; then
+            force_cache `uriencode $file`
+          fi
+        done
+        for file in ${modified_files[@]}; do
+          if [[ $file != .github* ]]; then
+            force_cache `uriencode $file`
+          fi
+        done
