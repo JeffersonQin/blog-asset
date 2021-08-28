@@ -73,18 +73,18 @@ jobs:
           echo ${uri//%2[Ff]//}
         }
         function force_cache() {
-          curl -s -o /dev/null --retry 5 "https://cdn.jsdelivr.net/gh/wuxianucw/ucw-desu@master/"$1
-          url="https://cdn.jsdelivr.net/gh/wuxianucw/ucw-desu@${{ github.run_id }}/"$1
+          curl -s -o /dev/null --retry 5 "https://cdn.jsdelivr.net/gh/JeffersonQin/blog-asset@latest/"$1
+          url="https://cdn.jsdelivr.net/gh/JeffersonQin/blog-asset@${{ github.run_id }}/"$1
           code=`curl -s -o /dev/null --retry 5 -w %{http_code} $url`
           echo "Force cache "$url" [ "$code" ]"
           if [ $code != "200" ]
           then
-              url="https://cdn.jsdelivr.net/gh/wuxianucw/ucw-desu@master/"$1
+              url="https://cdn.jsdelivr.net/gh/JeffersonQin/blog-asset@latest/"$1
               echo " - Try master "$url" [ `curl -s -o /dev/null --retry 5 -w %{http_code} $url` ]"
-              url="https://cdn.jsdelivr.net/gh/wuxianucw/ucw-desu@${{ github.run_id }}/"$1
+              url="https://cdn.jsdelivr.net/gh/JeffersonQin/blog-asset@${{ github.run_id }}/"$1
               echo " - Retry "$url" [ `curl -s -o /dev/null --retry 5 -w %{http_code} $url` ]"
           fi
-          url="https://cdn.jsdelivr.net/gh/wuxianucw/ucw-desu/"$1
+          url="https://cdn.jsdelivr.net/gh/JeffersonQin/blog-asset@latest/"$1
           echo " -> "$url" [ `curl -s -o /dev/null --retry 5 -w %{http_code} $url` ]"
         }
         readarray -t added_files <<<"$(jq -r '.[]' <<<'${{ steps.files.outputs.added }}')"
